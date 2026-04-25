@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>ACO Scheduler — Live Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #131922;
+      --bg3: #1c2433;
+      --bg4: #243044;
+      --accent: #38bdf8;
+      --accent2: #818cf8;
+      --accent3: #34d399;
+      --txt: #f1f5f9;
+      --txt2: #94a3b8;
+      --txt3: #64748b;
+      --border: rgba(255, 255, 255, 0.08);
+      --warn: #fbbf24;
+      --danger: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 0 24px; border-bottom: 1px solid var(--border); margin-bottom: 24px;
+    }
+    .title { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+    .title span { color: var(--accent); }
+    .subtitle { color: var(--txt2); font-size: 13px; margin-top: 2px; }
+    .badge {
+      background: var(--bg3); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: 8px; font-size: 12px; color: var(--txt2);
+    }
+    .grid {
+      display: grid; grid-template-columns: 360px 1fr; gap: 24px;
+    }
+    @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px; margin-bottom: 16px;
+    }
+    .panel-title {
+      font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--txt2); margin-bottom: 14px; font-weight: 600;
+    }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; color: var(--txt2); margin-bottom: 4px; }
+    .field input {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border);
+      color: var(--txt); padding: 10px 12px; border-radius: 8px;
+      font-family: inherit; font-size: 14px;
+    }
+    .field input:focus { outline: none; border-color: var(--accent); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    button.primary {
+      width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0d1117; padding: 12px; border: none; border-radius: 10px;
+      font-family: inherit; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: transform 0.15s; letter-spacing: 0.02em;
+    }
+    button.primary:hover { transform: translateY(-1px); }
+    button.primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    button.ghost {
+      background: transparent; color: var(--txt2); border: 1px solid var(--border);
+      padding: 8px 14px; border-radius: 8px; font-family: inherit;
+      font-size: 13px; cursor: pointer;
+    }
+    button.ghost:hover { color: var(--txt); border-color: var(--accent); }
+
+    /* Stats strip */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .stat {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px;
+    }
+    .stat-label { font-size: 11px; color: var(--txt3); text-transform: uppercase; letter-spacing: 0.08em; }
+    .stat-value { font-size: 22px; font-weight: 800; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+    .stat-sub { font-size: 11px; color: var(--txt3); margin-top: 2px; }
+    .stat-value.accent { color: var(--accent); }
+    .stat-value.success { color: var(--accent3); }
+    .stat-value.warn { color: var(--warn); }
+
+    /* The pheromone grid */
+    .pheromone-wrap { overflow-x: auto; }
+    .pheromone-grid {
+      display: grid; gap: 2px; min-width: 700px;
+    }
+    .pheromone-row { display: contents; }
+    .ph-label {
+      font-size: 11px; color: var(--txt2); padding: 4px 8px;
+      display: flex; align-items: center; white-space: nowrap;
+    }
+    .ph-cell {
+      aspect-ratio: 1; min-height: 22px; border-radius: 3px;
+      background: var(--bg3); transition: background 0.25s ease;
+      position: relative; cursor: default;
+    }
+    .ph-cell.fixed { background: var(--bg4); opacity: 0.4; }
+    .ph-cell.peak::after {
+      content: ''; position: absolute; inset: 0; border-radius: 3px;
+      box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.3);
+    }
+    .ph-cell.offpeak::after {
+      content: ''; position: absolute; inset: 0; border-radius: 3px;
+      box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.3);
+    }
+    .hour-axis { display: contents; }
+    .hour-label {
+      font-size: 9px; color: var(--txt3); text-align: center;
+      font-family: 'JetBrains Mono', monospace; padding: 2px 0;
+    }
+    .legend {
+      display: flex; gap: 16px; margin-top: 14px; font-size: 12px; color: var(--txt2);
+      flex-wrap: wrap;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+    /* Chart area */
+    canvas { width: 100% !important; height: 240px !important; }
+
+    /* Schedule table */
+    .schedule {
+      max-height: 360px; overflow-y: auto;
+      border: 1px solid var(--border); border-radius: 10px;
+    }
+    .schedule-row {
+      display: flex; align-items: center; padding: 10px 14px;
+      border-bottom: 1px solid var(--border); font-size: 13px; gap: 12px;
+    }
+    .schedule-row:last-child { border-bottom: none; }
+    .schedule-row .name { flex: 1; font-weight: 500; }
+    .schedule-row .slots { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .schedule-row.fixed-row .slots { color: var(--txt3); }
+
+    .ant-emoji {
+      position: absolute; font-size: 14px; pointer-events: none;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 10;
+    }
+
+    .footer-note {
+      color: var(--txt3); font-size: 12px; text-align: center;
+      margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .footer-note code {
+      background: var(--bg3); padding: 2px 6px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace; color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <div class="title">ACO <span>Scheduler</span></div>
+        <div class="subtitle">Watch Ant Colony Optimization minimise your monthly bill — live</div>
+      </div>
+      <div class="badge" id="statusBadge">Idle</div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: input controls -->
+      <div>
+        <div class="panel">
+          <div class="panel-title">Tariff Model</div>
+          <div style="font-size: 12px; color: var(--txt2); line-height: 1.6;">
+            NEPRA 2025 slabs (PKR 4.78 → 48.46 per unit) with Time-of-Use multipliers:
+            <br>· <span style="color: var(--accent3)">Off-peak (10pm–6am): 0.7×</span>
+            <br>· Standard: 1.0×
+            <br>· <span style="color: var(--danger)">Peak (6pm–10pm): 1.5×</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">ACO Parameters</div>
+          <div class="row">
+            <div class="field">
+              <label>Number of ants (m)</label>
+              <input type="number" id="nAnts" value="20" min="5" max="100" />
+            </div>
+            <div class="field">
+              <label>Iterations (t)</label>
+              <input type="number" id="nIters" value="60" min="10" max="300" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>Random seed</label>
+              <input type="number" id="seed" value="42" />
+            </div>
+            <div class="field">
+              <label>Animation delay (ms)</label>
+              <input type="number" id="delay" value="80" min="0" max="500" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Capacity limit (W)</label>
+            <input type="number" id="capacity" value="3000" min="1000" />
+          </div>
+          <button class="primary" id="runBtn">▶  Run ACO</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">How to read the visualization</div>
+          <div style="font-size: 12px; color: var(--txt2); line-height: 1.6;">
+            Each <strong style="color: var(--txt)">row</strong> is an appliance. Each
+            <strong style="color: var(--txt)">column</strong> is one hour of the day (00:00–23:00).
+            Brighter cells = stronger pheromone. The algorithm learns which hour is best for which
+            appliance, biasing future ants toward those choices.
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: live visualization -->
+      <div>
+        <!-- Stats strip -->
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Iteration</div>
+            <div class="stat-value" id="statIter">–</div>
+            <div class="stat-sub" id="statIterSub">not started</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">ACO best bill</div>
+            <div class="stat-value accent" id="statAco">–</div>
+            <div class="stat-sub">monthly, PKR</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Greedy baseline</div>
+            <div class="stat-value warn" id="statGreedy">–</div>
+            <div class="stat-sub">cheapest-slot-first</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Saved vs greedy</div>
+            <div class="stat-value success" id="statSaved">–</div>
+            <div class="stat-sub" id="statSavedPct">–</div>
+          </div>
+        </div>
+
+        <!-- Convergence chart -->
+        <div class="panel">
+          <div class="panel-title">Convergence — bill per iteration</div>
+          <canvas id="chart"></canvas>
+        </div>
+
+        <!-- Pheromone grid -->
+        <div class="panel" style="position: relative;">
+          <div class="panel-title">Pheromone matrix τ — appliance × hour-of-day</div>
+          <div class="pheromone-wrap">
+            <div class="pheromone-grid" id="phGrid"></div>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:#1c2433"></div>low pheromone</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#38bdf8"></div>high pheromone</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:rgba(248,113,113,0.4); border:1px solid var(--danger)"></div>peak hour</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:rgba(52,211,153,0.4); border:1px solid var(--accent3)"></div>off-peak</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#243044; opacity:0.4"></div>fixed appliance</div>
+          </div>
+        </div>
+
+        <!-- Final schedule -->
+        <div class="panel">
+          <div class="panel-title">Best schedule found</div>
+          <div class="schedule" id="scheduleBox">
+            <div style="padding: 24px; color: var(--txt3); font-size: 13px; text-align: center;">
+              Run ACO to see the optimised schedule
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      Backend: <code>app.py</code> (Flask) → <code>aco_scheduler.py</code> (the same algorithm analysed in the report).
+      Updates streamed live via Server-Sent Events.
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+    let appliances = [];
+    let chart = null;
+    let baselineGreedy = null;
+    let baselineRandom = null;
+
+    // ---------- Helpers ----------
+    const $ = id => document.getElementById(id);
+    const fmt = n => Math.round(n).toLocaleString('en-PK');
+
+    function isPeak(h)    { return h >= 18 && h < 22; }
+    function isOffPeak(h) { return h >= 22 || h < 6; }
+
+    // ---------- Init pheromone grid ----------
+    async function init() {
+      const r = await fetch('/api/appliances');
+      const data = await r.json();
+      appliances = data.appliances;
+      buildPheromoneGrid();
+      buildChart();
+    }
+
+    function buildPheromoneGrid() {
+      const grid = $('phGrid');
+      grid.innerHTML = '';
+      // Set column template: label + 24 hour columns
+      grid.style.gridTemplateColumns = '140px repeat(24, 1fr)';
+
+      // Header row: empty cell + hour labels
+      const corner = document.createElement('div');
+      corner.className = 'ph-label';
+      corner.textContent = 'Appliance';
+      grid.appendChild(corner);
+      for (let h = 0; h < 24; h++) {
+        const lbl = document.createElement('div');
+        lbl.className = 'hour-label';
+        lbl.textContent = String(h).padStart(2, '0');
+        grid.appendChild(lbl);
+      }
+
+      // One row per appliance
+      appliances.forEach((a, i) => {
+        const lbl = document.createElement('div');
+        lbl.className = 'ph-label';
+        lbl.textContent = a.name + (a.shiftable ? '' : ' ◆');
+        grid.appendChild(lbl);
+        for (let h = 0; h < 24; h++) {
+          const cell = document.createElement('div');
+          let cls = 'ph-cell';
+          if (!a.shiftable) cls += ' fixed';
+          if (isPeak(h))    cls += ' peak';
+          if (isOffPeak(h)) cls += ' offpeak';
+          cell.className = cls;
+          cell.id = `ph-${i}-${h}`;
+          grid.appendChild(cell);
+        }
+      });
+    }
+
+    function paintPheromones(tau) {
+      // tau is an N x 24 array. We map values to a colour ramp.
+      // Find max for normalisation (ignore extreme outliers).
+      let maxVal = 0;
+      for (const row of tau) for (const v of row) if (v > maxVal) maxVal = v;
+      if (maxVal <= 0) maxVal = 1;
+      for (let i = 0; i < tau.length; i++) {
+        if (i >= appliances.length) break;
+        for (let h = 0; h < 24; h++) {
+          const cell = $(`ph-${i}-${h}`);
+          if (!cell) continue;
+          if (!appliances[i].shiftable) continue; // keep fixed cells dim
+          const intensity = Math.min(1, tau[i][h] / maxVal);
+          // Interpolate from bg3 (#1c2433) → accent (#38bdf8)
+          const r = Math.round(0x1c + intensity * (0x38 - 0x1c));
+          const g = Math.round(0x24 + intensity * (0xbd - 0x24));
+          const b = Math.round(0x33 + intensity * (0xf8 - 0x33));
+          cell.style.background = `rgb(${r}, ${g}, ${b})`;
+        }
+      }
+    }
+
+    // ---------- Chart ----------
+    function buildChart() {
+      const ctx = $('chart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'ACO best-so-far',
+              data: [],
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56,189,248,0.1)',
+              borderWidth: 2,
+              tension: 0.2,
+              pointRadius: 0,
+            },
+            {
+              label: 'Greedy baseline',
+              data: [],
+              borderColor: '#fbbf24',
+              borderDash: [6, 6],
+              borderWidth: 2,
+              pointRadius: 0,
+            },
+            {
+              label: 'Random baseline',
+              data: [],
+              borderColor: '#f87171',
+              borderDash: [2, 4],
+              borderWidth: 2,
+              pointRadius: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: { labels: { color: '#94a3b8' } },
+          },
+          scales: {
+            x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' },
+                 title: { display: true, text: 'Iteration', color: '#94a3b8' } },
+            y: { ticks: { color: '#64748b', callback: v => 'PKR ' + (v/1000).toFixed(0) + 'k' },
+                 grid: { color: 'rgba(255,255,255,0.05)' },
+                 title: { display: true, text: 'Monthly bill', color: '#94a3b8' } },
+          },
+        },
+      });
+    }
+
+    function resetChart() {
+      chart.data.labels = [];
+      chart.data.datasets.forEach(d => d.data = []);
+      chart.update();
+    }
+
+    // ---------- Run ACO ----------
+    async function runACO() {
+      const btn = $('runBtn');
+      btn.disabled = true; btn.textContent = '⟳  Running…';
+      $('statusBadge').textContent = 'Running…';
+      $('statusBadge').style.color = 'var(--accent)';
+
+      // Reset visuals
+      resetChart();
+      buildPheromoneGrid();
+      $('scheduleBox').innerHTML = '<div style="padding: 24px; color: var(--txt3); font-size: 13px; text-align: center;">Building schedules…</div>';
+      ['statIter', 'statAco', 'statGreedy', 'statSaved', 'statSavedPct'].forEach(id => {
+        const el = $(id); if (el) el.textContent = '–';
+      });
+
+      const payload = {
+        n_ants: +$('nAnts').value,
+        n_iterations: +$('nIters').value,
+        seed: +$('seed').value,
+        delay_ms: +$('delay').value,
+        capacity: +$('capacity').value,
+      };
+
+      const r = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE messages separated by \n\n
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop();
+        for (const part of parts) {
+          if (!part.startsWith('data:')) continue;
+          const json = part.replace(/^data:\s*/, '');
+          try {
+            const event = JSON.parse(json);
+            handleEvent(event);
+          } catch (e) {
+            console.error('Bad SSE chunk', json);
+          }
+        }
+      }
+
+      btn.disabled = false; btn.textContent = '▶  Run ACO';
+      $('statusBadge').textContent = 'Done';
+      $('statusBadge').style.color = 'var(--accent3)';
+    }
+
+    function handleEvent(ev) {
+      if (ev.type === 'meta') {
+        $('statIterSub').textContent = `0 / ${ev.n_iterations}`;
+      }
+      else if (ev.type === 'baseline') {
+        baselineGreedy = ev.greedy;
+        baselineRandom = ev.random_avg;
+        $('statGreedy').textContent = 'PKR ' + fmt(ev.greedy);
+      }
+      else if (ev.type === 'iteration') {
+        // Update stats
+        $('statIter').textContent = ev.iteration + 1;
+        $('statIterSub').textContent = `${ev.iteration + 1} / ${$('nIters').value}`;
+        $('statAco').textContent = 'PKR ' + fmt(ev.best_bill);
+        if (baselineGreedy) {
+          const saved = baselineGreedy - ev.best_bill;
+          const pct = saved / baselineGreedy * 100;
+          $('statSaved').textContent = (saved >= 0 ? '+' : '') + 'PKR ' + fmt(Math.abs(saved));
+          $('statSavedPct').textContent = (pct >= 0 ? '' : '') + pct.toFixed(2) + '%';
+          $('statSaved').className = 'stat-value ' + (saved > 0 ? 'success' : 'warn');
+        }
+        // Update chart
+        chart.data.labels.push(ev.iteration + 1);
+        chart.data.datasets[0].data.push(ev.best_bill);
+        if (baselineGreedy) chart.data.datasets[1].data.push(baselineGreedy);
+        if (baselineRandom) chart.data.datasets[2].data.push(baselineRandom);
+        chart.update('none');
+        // Repaint pheromone grid
+        if (ev.tau) paintPheromones(ev.tau);
+      }
+      else if (ev.type === 'done') {
+        // Render final schedule
+        const box = $('scheduleBox');
+        box.innerHTML = '';
+        appliances.forEach((a, i) => {
+          const slots = ev.best_schedule[String(i)] || [];
+          if (a.shiftable && slots.length === 0) return;
+          const row = document.createElement('div');
+          row.className = 'schedule-row' + (a.shiftable ? '' : ' fixed-row');
+          const slotsToShow = a.shiftable ? slots : (a.fixed_slots || []);
+          row.innerHTML = `
+            <div class="name">${a.name} ${a.shiftable ? '' : '<span style="color:var(--txt3); font-size:11px">(fixed)</span>'}</div>
+            <div style="color: var(--txt3); font-size: 12px;">${a.watts}W</div>
+            <div class="slots">${slotsToShow.map(h => String(h).padStart(2,'0') + ':00').join(' · ')}</div>
+          `;
+          box.appendChild(row);
+        });
+
+        $('statusBadge').textContent = `Done — ${ev.pct_vs_greedy.toFixed(2)}% better than greedy`;
+      }
+      else if (ev.type === 'error') {
+        alert('Error: ' + ev.message);
+        console.error(ev.trace);
+      }
+    }
+
+    $('runBtn').addEventListener('click', runACO);
+    init();
+  </script>
+</body>
+</html>
