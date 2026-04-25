@@ -113,4 +113,4 @@ fails because:
 
 ## Author
 
-Muhammad — Spring 2026
+Muhammad Wajahat Rehman
