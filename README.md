@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/73b964aa-6a4c-4b20-9bc0-b3916e1d9858
+
 # ACO Appliance Scheduler — NEPRA 2025
 
 **Course:** Analysis of Algorithms (Spring 2026)
